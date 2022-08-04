@@ -23,16 +23,22 @@ import { DefaultSecondaryWindowService } from '../../browser/window/default-seco
 export class ElectronSecondaryWindowService extends DefaultSecondaryWindowService {
     protected electronWindows: Map<string, BrowserWindow> = new Map();
 
-    protected override doCreateSecondaryWindow(): Window | undefined {
+    protected override doCreateSecondaryWindow(onClose?: (closedWin: Window) => void): Window | undefined {
         const id = this.nextWindowId();
         electronRemote.getCurrentWindow().webContents.once('did-create-window', newElectronWindow => {
             newElectronWindow.setMenuBarVisibility(false);
             this.electronWindows.set(id, newElectronWindow);
+            newElectronWindow.on('closed', () => {
+                this.electronWindows.delete(id);
+                const browserWin = this.secondaryWindows.find(w => w.name === id);
+                if (browserWin) {
+                    this.handleWindowClosed(browserWin, onClose);
+                } else {
+                    console.warn(`Could not execute proper close handling for secondary window '${id}' because its frontend window could not be found.`);
+                };
+            });
         });
         const win = window.open(DefaultSecondaryWindowService.SECONDARY_WINDOW_URL, id);
-        win?.addEventListener('beforeunload', () => {
-            this.electronWindows.delete(id);
-        });
         return win ?? undefined;
     }
 

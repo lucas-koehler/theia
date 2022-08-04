@@ -46,22 +46,33 @@ export class DefaultSecondaryWindowService implements SecondaryWindowService {
         });
     }
 
-    createSecondaryWindow(): Window | undefined {
-        const win = this.doCreateSecondaryWindow();
+    createSecondaryWindow(onClose?: (closedWin: Window) => void): Window | undefined {
+        const win = this.doCreateSecondaryWindow(onClose);
         if (win) {
             this.secondaryWindows.push(win);
-            win.addEventListener('beforeunload', () => {
-                const extIndex = this.secondaryWindows.indexOf(win);
-                if (extIndex > -1) {
-                    this.secondaryWindows.splice(extIndex, 1);
-                }
+        }
+        return win;
+    }
+
+    protected doCreateSecondaryWindow(onClose?: (closedWin: Window) => void): Window | undefined {
+        const win = window.open(DefaultSecondaryWindowService.SECONDARY_WINDOW_URL, this.nextWindowId(), 'popup');
+        if (win) {
+            // Add the unload listener after the dom content was loaded because otherwise the unload listener is called already on open in some browsers (e.g. Chrome).
+            win.addEventListener('DOMContentLoaded', () => {
+                win.addEventListener('unload', () => {
+                    this.handleWindowClosed(win, onClose);
+                });
             });
         }
         return win ?? undefined;
     }
 
-    protected doCreateSecondaryWindow(): Window | undefined {
-        return window.open(DefaultSecondaryWindowService.SECONDARY_WINDOW_URL, this.nextWindowId(), 'popup') ?? undefined;
+    protected handleWindowClosed(win: Window, onClose?: (closedWin: Window) => void): void {
+        const extIndex = this.secondaryWindows.indexOf(win);
+        if (extIndex > -1) {
+            this.secondaryWindows.splice(extIndex, 1);
+        };
+        onClose?.(win);
     }
 
     focus(win: Window): void {

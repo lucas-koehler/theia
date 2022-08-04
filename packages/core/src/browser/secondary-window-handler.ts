@@ -132,7 +132,14 @@ export class SecondaryWindowHandler {
             return;
         }
 
-        const newWindow = this.secondaryWindowService.createSecondaryWindow();
+        const newWindow = this.secondaryWindowService.createSecondaryWindow(closed => {
+            this.applicationShell.closeWidget(widget.id);
+            const extIndex = this.secondaryWindows.indexOf(closed);
+            if (extIndex > -1) {
+                this.secondaryWindows.splice(extIndex, 1);
+            }
+        });
+
         if (!newWindow) {
             this.messageService.error('The widget could not be moved to a secondary window because the window creation failed. Please make sure to allow popups.');
             return;
@@ -159,15 +166,6 @@ export class SecondaryWindowHandler {
             widget.update();
 
             this.addWidget(widget);
-
-            // Close widget and remove window from this handler when the window is closed.
-            newWindow.addEventListener('beforeunload', () => {
-                this.applicationShell.closeWidget(widget.id);
-                const extIndex = this.secondaryWindows.indexOf(newWindow);
-                if (extIndex > -1) {
-                    this.secondaryWindows.splice(extIndex, 1);
-                }
-            });
 
             // Close the window if the widget is disposed, e.g. by a command closing all widgets.
             widget.disposed.connect(() => {
